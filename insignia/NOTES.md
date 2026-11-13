@@ -47,26 +47,29 @@ from the shipped System Link tool.
 The user supplies the files xemu produced (`eeprom.bin`, and the account from
 xemu's virtual HDD); the launcher reads them and patches the running emulator.
 
-### Piece A — identity injection  *(needs live RE — open)*
-Override the serial + online key (+ HDD key if used) the emulator hands the
-guest, with the values from the user's registered `eeprom.bin`.
+### Piece A — identity injection  *(BLOCKED — see FEASIBILITY.md)*
+Override the serial + online key the emulator hands the guest with the values
+from the user's registered `eeprom.bin`.
 
-RE progress: the `VirtualNicDevice` is a static global in `Emu.exe` data
-(`Emu.exe + 0x12C2B8` this build — the same object the System Link fix drives),
-so the device side is reachable. But the console identity is **not** stored as a
-conventional EEPROM: no 256-byte EEPROM image, and no serial/online-key buffer,
-appears in host or guest memory; even the operating MAC is absent as a static
-field and differs each boot. The identity is synthesised on demand, so the
-injection target is the generator (the kernel non-volatile-setting HLE), not a
-buffer. Pinning that down blind is slow; it becomes easy once we can boot with a
-**known** registered online key and search memory for it — hence the dependency
-on a real `eeprom.bin`. `eeprom.py` already reads the needed fields from it.
+Investigated to a conclusion. The `VirtualNicDevice` is a static global in
+`Emu.exe` (reachable — the System Link fix drives it), but the **identity is
+not injectable**: no persisted EEPROM, no 256-byte EEPROM in memory, and the
+operating MAC regenerates each boot. The decisive finding: the game's XBE
+kernel-thunk table (guest VA `0x475780`) is **unused** — the title is
+recompiled and kernel calls (incl. `ExQueryNonVolatileSetting`, which reads the
+online key) are translated to direct calls into MS's HLE runtime, so there is no
+dispatch indirection to hook and no standing buffer to overwrite. Injecting the
+identity would require disassembling the undocumented recompiler/HLE (no
+symbols). `eeprom.py` reads the needed fields and is ready if that hook is ever
+found, but this is the wall. Full write-up in `FEASIBILITY.md`.
 
-### Piece B — saved account  *(needs live RE + Insignia knowledge)*
-Make the game's account enumeration return the account created on xemu, so it
-logs in instead of forcing New-account. Needs (a) where the emulator lets the
-guest read accounts, and (b) the account blob format — the latter is Insignia's
-domain.
+### Piece B — saved account  *(inherits piece A — BLOCKED)*
+Confirmed by inspecting a drive provisioned on xemu: the account is **not** a
+portable local file. The provisioning tool recovers it *live* from the service
+using the console online key (server: "account already provisioned," keyed to
+the serial). So the account only returns if the client presents the correct
+online key — which is exactly what piece A cannot inject. The account problem
+collapses into the identity problem. See `FEASIBILITY.md` §5.
 
 ### Piece C — virtual LAN / routing  *(built + self-tested)*
 `insignia-router.py` plugs into the bridge's existing frame tunnel (set the ini
