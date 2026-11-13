@@ -522,11 +522,18 @@ void mainCRTStartup(void)
         jmp[0] = 0xE9; put32(jmp + 1, (u32)(mem - (t.irq + 5)));
         jmp[5] = 0x0F; jmp[6] = 0x1F; jmp[7] = 0x44; jmp[8] = 0x00; jmp[9] = 0x00; /* 5-byte nop */
 
-        /* keep the card's flags set while the emulator boots */
-        while (alive(proc) && GetTickCount() - t0 < 4000) {
-            u32 f[2] = {0, 0}, one[2] = {1, 1};
+        /* Keep the card's flags set while the emulator boots, and only start the
+           bridge once the guest's network driver is up (it has queued a frame).
+           Raising network interrupts before that crashes the boot. */
+        out("Waiting for the game's network stack...\r\n");
+        for (;;) {
+            u32 f[2] = {0, 0}, one[2] = {1, 1}, prod = 0;
+            DWORD el = GetTickCount() - t0;
+            if (!alive(proc)) { out("The game closed during start-up.\r\n"); pause_exit(1); }
             rd(proc, t.nicFlags, f, 8);
             if (f[0] != 1 || f[1] != 1) wr(proc, t.nicFlags, one, 8);
+            rd(proc, t.nic + 0xAC0, &prod, 4);
+            if ((prod != 0 && el > 4000) || el > 120000) break;
             Sleep(20);
         }
 

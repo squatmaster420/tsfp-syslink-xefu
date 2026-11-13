@@ -52,7 +52,7 @@ u32 bridge_loop(BridgeCtx *c)
     volatile u8 *rxBuf = nic + c->offRxBuf;
     volatile u32 *txProd = (volatile u32 *)(nic + c->offTxProd);
     void *ev[2];
-    u32 cons = *txProd;   /* only frames queued from now on */
+    u32 cons = 0;         /* also sends what the guest queued before we started */
     u8 frame[2048];
     u8 from[16];
 
@@ -60,18 +60,6 @@ u32 bridge_loop(BridgeCtx *c)
     ev[1] = CreateEventA(0, 0, 0, 0);   /* guest copied the rx frame */
     *(void *volatile *)(nic + c->offTxEvent) = ev[0];
     *(void *volatile *)(nic + c->offRxEvent) = ev[1];
-
-    /* frames queued before we started can never be sent; complete them so the
-       guest gets its buffers back */
-    {
-        u32 i;
-        for (i = 0; i < c->txRingSize; i++) {
-            u8 *e = nic + c->offTxRing + i * 24;
-            volatile u32 *st = *(volatile u32 **)(e + 16);
-            if (st && *st == 0x80000000u) *st = c->txStatusDone;
-        }
-        raiseTx(c->nic2);
-    }
 
     c->stage = STAGE_LOOP;
     c->running = 1;
