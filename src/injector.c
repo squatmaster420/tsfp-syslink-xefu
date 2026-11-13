@@ -104,6 +104,20 @@ static const char INI_TEMPLATE[] =
 "launch=1\r\n"
 "app=Xbox360BackwardCompatibil.PrimaryTimeSplittersFutu_ksqcvrsvwz2jp!App\r\n";
 
+/* GetPrivateProfileString keeps inline "; comments" and trailing spaces */
+static void clean_value(char *s)
+{
+    u32 i = 0, end = 0;
+    while (s[i] && s[i] != ';' && s[i] != '#') { if (s[i] != ' ' && s[i] != '\t') end = i + 1; i++; }
+    s[end] = 0;
+}
+
+static void ini_get(const char *sec, const char *key, const char *def, char *buf, u32 cap, const char *ini)
+{
+    GetPrivateProfileStringA(sec, key, def, buf, cap, ini);
+    clean_value(buf);
+}
+
 static void load_config(Config *c, char *iniPath)
 {
     char exe[520], buf[256];
@@ -122,11 +136,11 @@ static void load_config(Config *c, char *iniPath)
         }
     }
 
-    GetPrivateProfileStringA("relay", "host", "127.0.0.1", c->host, sizeof(c->host), iniPath);
-    GetPrivateProfileStringA("relay", "port", "34523", buf, sizeof(buf), iniPath);  c->port = atou(buf);
-    GetPrivateProfileStringA("relay", "local_port", "9369", buf, sizeof(buf), iniPath); c->localPort = atou(buf);
-    GetPrivateProfileStringA("game", "launch", "1", buf, sizeof(buf), iniPath); c->launch = atou(buf) != 0;
-    GetPrivateProfileStringA("game", "app", "Xbox360BackwardCompatibil.PrimaryTimeSplittersFutu_ksqcvrsvwz2jp!App", c->app, sizeof(c->app), iniPath);
+    ini_get("relay", "host", "127.0.0.1", c->host, sizeof(c->host), iniPath);
+    ini_get("relay", "port", "34523", buf, sizeof(buf), iniPath);  c->port = atou(buf);
+    ini_get("relay", "local_port", "9369", buf, sizeof(buf), iniPath); c->localPort = atou(buf);
+    ini_get("game", "launch", "1", buf, sizeof(buf), iniPath); c->launch = atou(buf) != 0;
+    ini_get("game", "app", "Xbox360BackwardCompatibil.PrimaryTimeSplittersFutu_ksqcvrsvwz2jp!App", c->app, sizeof(c->app), iniPath);
     if (!parse_ip(c->host, &c->ip)) { say("Invalid host '%s' in the ini; using 127.0.0.1\r\n", c->host); parse_ip("127.0.0.1", &c->ip); scopy(c->host, "127.0.0.1", 64); }
     if (!c->port || c->port > 65535) c->port = 34523;
     if (!c->localPort || c->localPort > 65535) c->localPort = 9369;

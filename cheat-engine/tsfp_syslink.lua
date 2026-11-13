@@ -288,7 +288,10 @@ tsfpTimer.OnTimer = function(t)
     writeInteger(b + OFF_NIC_FLAGS, 1) writeInteger(b + OFF_NIC_FLAGS + 4, 1) S.writes = S.writes + 1
   end
   local now = getTickCount() - S.start
-  if S.bridge == 0 and now > 3000 then
+  -- Start the bridge only once the guest's network driver is up (it has queued
+  -- its first frame). Raising network interrupts earlier crashes the boot.
+  local prod = readInteger(b + OFF_NIC_FLAGS - 0x28 + 0xAC0) or 0
+  if S.bridge == 0 and ((prod ~= 0 and now > 4000) or now > 120000) then
     S.bridge = loadBridge(b) and 1 or -1
   elseif S.bridge == 1 then
     if readInteger(S.sym.st_running) == 1 then
@@ -300,7 +303,9 @@ tsfpTimer.OnTimer = function(t)
       writeBytes(b + OFF_IRQ_FUNC, table.unpack(IRQ_ORIG)) S.bridge = -1
     end
   end
-  if now > 90000 and S.bridge ~= 1 then t.Enabled = false log("setup finished") end
+  if S.bridge == 2 and t.Interval ~= 500 then t.Interval = 500 end   -- keep holding the flags, like the exe
+  if S.bridge == -1 then t.Enabled = false log("setup stopped") end
+  if getProcessIDFromProcessName("Emu.exe") ~= S.pid then t.Enabled = false log("game closed") end
 end
 
 function tsfpStats()
