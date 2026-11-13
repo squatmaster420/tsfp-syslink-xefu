@@ -1,0 +1,26 @@
+name: build
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM
+        run: sudo apt-get update && sudo apt-get install -y clang lld llvm
+      - name: Build
+        run: sh build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tsfp-syslink
+          path: dist/tsfp-syslink.exe
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/tsfp-syslink.exe --clobber
