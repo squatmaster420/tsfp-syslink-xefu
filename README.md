@@ -28,6 +28,8 @@ repository, and every release is built from it by GitHub Actions.
 
 ## Use
 
+**YOU MUST OWN TIMESPLITTERS FUTURE PERFECT. NO SUPPORT WILL BE PROVIDED FOR PIRACY (https://www.xbox.com/en-us/games/store/timesplitters-future-perfect/9n51s9qzmsb6)**
+
 1. Install and start [XLink Kai](https://www.teamxlink.co.uk/) (run it as
    administrator and allow it through the firewall).
 2. Close TimeSplitters if it is running, then run `tsfp-syslink.exe`.
