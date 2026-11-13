@@ -77,6 +77,7 @@ u32 bridge_loop(BridgeCtx *c)
             u32 len = *(u32 *)(e + 8);
             volatile u32 *st = *(volatile u32 **)(e + 16);
             if (buf && len > 0 && len <= MAX_FRAME) {
+                c->stage = STAGE_TX_SEND;
                 if (p_sendto(c->sock, buf, (int)len, 0, c->saRemote, 16) > 0) c->txFrames++;
                 else c->sendErrors++;
             }
@@ -84,7 +85,7 @@ u32 bridge_loop(BridgeCtx *c)
             cons = (cons + 1) % c->txRingSize;
             sent++;
         }
-        if (sent) raiseTx(c->nic2);
+        if (sent) { c->stage = STAGE_TX_RAISE; raiseTx(c->nic2); c->stage = STAGE_IDLE; }
 
         if (*rxLen == 0) {
             int fromlen = 16;
@@ -95,7 +96,9 @@ u32 bridge_loop(BridgeCtx *c)
                     for (i = 0; i < n; i++) rxBuf[i] = frame[i];
                     *rxLen = (u16)n;
                     c->rxFrames++;
+                    c->stage = STAGE_RX_RAISE;
                     raiseRx(c->nic2);
+                    c->stage = STAGE_IDLE;
                 } else {
                     c->rxDropped++;
                 }
@@ -144,7 +147,6 @@ void bridge_init(BridgeCtx *c)
     if (p_bind(c->sock, local, 16) != 0) { c->wsaError = (u32)p_err(); c->stage = STAGE_ERR_BIND; return; }
     p_ioctl(c->sock, FIONBIO_, &nb);
 
-    c->stage = STAGE_BOUND;
+    c->stage = STAGE_THREAD;   /* set first: the new thread updates it from here on */
     if (!CreateThread(0, 0, (void *)c->bridgeLoop, c, 0, 0)) { c->stage = STAGE_ERR_THREAD; return; }
-    c->stage = STAGE_THREAD;
 }

@@ -80,7 +80,7 @@ For the xemu setup, set xemu's network to **UDP Tunnel**, bind address
 
 ## Build
 
-Needs LLVM (`clang`, `lld-link`, `llvm-dlltool`, `llvm-objcopy`, `llvm-nm`) and
+Needs LLVM (`clang`, `lld-link`, `llvm-dlltool`) and
 Python 3. Works on Linux, WSL, or Windows with LLVM installed (use Git Bash):
 
 ```sh

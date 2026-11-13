@@ -10,7 +10,7 @@
 #include "win.h"
 #include "payload.h"   /* generated: g_payload[], PAYLOAD_INIT_OFFSET, PAYLOAD_LOOP_OFFSET */
 
-#define VERSION "0.1.0"
+#define VERSION "0.1.2"
 
 /* compilers may emit calls to these even with -fno-builtin */
 void *memset(void *d, int c, u64 n) { volatile u8 *p = d; while (n--) *p++ = (u8)c; return d; }
@@ -443,6 +443,34 @@ static void fill_ctx(BridgeCtx *c, const Targets *t, const Config *cfg, u64 code
 /* ------------------------------------------------------------------- main */
 static int alive(HANDLE p) { DWORD c = 0; return GetExitCodeProcess(p, &c) && c == STILL_ACTIVE; }
 
+static const char *stage_name(u32 s)
+{
+    switch (s) {
+    case 0: return "hook not reached yet";
+    case STAGE_INIT: return "loading ws2_32";
+    case STAGE_SOCKET: return "creating the socket";
+    case STAGE_BOUND: return "socket bound";
+    case STAGE_THREAD: return "starting the bridge thread";
+    case STAGE_LOOP: return "bridge thread running";
+    case STAGE_TX_SEND: return "sending a frame (sendto)";
+    case STAGE_TX_RAISE: return "raising the 'sent' interrupt";
+    case STAGE_RX_RAISE: return "raising the 'received' interrupt";
+    case STAGE_IDLE: return "idle, after an interrupt";
+    default: return "?";
+    }
+}
+
+/* the game is gone: say how it ended and what the bridge was doing */
+static void report_exit(HANDLE p, const char *what, u32 lastStage, int bridgeLoaded)
+{
+    DWORD code = 0;
+    char h[24];
+    GetExitCodeProcess(p, &code);
+    say("\r\n%s Emulator exit code: 0x%s%s\r\n", what, hex64(h, code),
+        code == 0xC0000005 ? " (access violation - it crashed)" : (code & 0xC0000000) == 0xC0000000 ? " (it crashed)" : "");
+    if (bridgeLoaded) say("Last bridge stage seen: %u (%s)\r\n", lastStage, stage_name(lastStage));
+}
+
 static void pause_exit(int code)
 {
     char b[8]; DWORD r;
@@ -523,7 +551,7 @@ void mainCRTStartup(void)
         u64 mem = alloc_near(proc, t.irq, 0x2000), ctxAddr, codeAddr;
         BridgeCtx ctx;
         u8 stub[STUB_SIZE], jmp[10], orig[10];
-        u32 waited = 0;
+        u32 waited = 0, lastStage = 0;
         if (!mem) { out("Could not allocate memory in the emulator.\r\n"); pause_exit(1); }
         ctxAddr = mem + OFF_CTX;
         codeAddr = mem + OFF_CODE;
@@ -543,7 +571,7 @@ void mainCRTStartup(void)
         for (;;) {
             u32 f[2] = {0, 0}, one[2] = {1, 1}, prod = 0;
             DWORD el = GetTickCount() - t0;
-            if (!alive(proc)) { out("The game closed during start-up.\r\n"); pause_exit(1); }
+            if (!alive(proc)) { report_exit(proc, "The game closed during start-up.", 0, 0); pause_exit(1); }
             rd(proc, t.nicFlags, f, 8);
             if (f[0] != 1 || f[1] != 1) wr(proc, t.nicFlags, one, 8);
             rd(proc, t.nic + 0xAC0, &prod, 4);
@@ -555,8 +583,9 @@ void mainCRTStartup(void)
         out("Starting the bridge...\r\n");
         for (;;) {
             BridgeCtx live;
-            if (!alive(proc)) { out("The game closed.\r\n"); pause_exit(0); }
+            if (!alive(proc)) { report_exit(proc, "The game closed while the bridge was starting.", lastStage, 1); pause_exit(1); }
             if (rd(proc, ctxAddr, &live, sizeof(live))) {
+                lastStage = live.stage;
                 if (live.running) { say("Bridge running: UDP %u <-> %s:%u\r\n", cfg.localPort, cfg.host, cfg.port); break; }
                 if (live.stage >= STAGE_ERR_WS2) {
                     wr_code_safely(proc, pid, t.irq, orig, 10);
@@ -565,8 +594,8 @@ void mainCRTStartup(void)
                     pause_exit(1);
                 }
             }
-            Sleep(20);
-            if ((waited += 20) > 60000) { out("The bridge did not start within a minute.\r\n"); wr_code_safely(proc, pid, t.irq, orig, 10); pause_exit(1); }
+            Sleep(1);
+            if ((waited += 1) > 60000) { out("The bridge did not start within a minute.\r\n"); wr_code_safely(proc, pid, t.irq, orig, 10); pause_exit(1); }
         }
         wr_code_safely(proc, pid, t.irq, orig, 10);
 
@@ -576,6 +605,7 @@ void mainCRTStartup(void)
             while (alive(proc)) {
                 BridgeCtx live;
                 u32 f[2] = {0, 0}, one[2] = {1, 1};
+                if (rd(proc, ctxAddr, &live, sizeof(live))) lastStage = live.stage;
                 if (rd(proc, ctxAddr, &live, sizeof(live)) && (live.txFrames != lastTx || live.rxFrames != lastRx)) {
                     char line[160];
                     lastTx = live.txFrames; lastRx = live.rxFrames;
@@ -584,12 +614,13 @@ void mainCRTStartup(void)
                 }
                 rd(proc, t.nicFlags, f, 8);
                 if (f[0] != 1 || f[1] != 1) wr(proc, t.nicFlags, one, 8);
-                Sleep(500);
+                Sleep(50);
             }
+            report_exit(proc, "\r\nThe game closed.", lastStage, 1);
         }
         (void)h2;
     }
-    out("\r\n\r\nThe game closed. Goodbye.\r\n");
+    pause_exit(0);
     CloseHandle(proc);
     ExitProcess(0);
 }

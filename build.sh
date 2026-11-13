@@ -7,11 +7,7 @@ CFLAGS="--target=x86_64-pc-windows-msvc -O2 -ffreestanding -fno-builtin -nostdli
 
 # 1. bridge payload: one position-independent .text blob, no relocations allowed
 clang $CFLAGS -mno-stack-arg-probe -fno-unwind-tables -fno-asynchronous-unwind-tables -c src/bridge.c -o build/bridge.obj
-if llvm-objdump -r build/bridge.obj | grep -q "IMAGE_REL"; then
-  echo "bridge payload has relocations - it must be position independent" >&2; exit 1
-fi
-llvm-objcopy -O binary --only-section=.text build/bridge.obj build/bridge.bin
-python3 tools/embed.py build/bridge.obj build/bridge.bin build/payload.h
+python3 tools/embed.py build/bridge.obj build/payload.h   # extracts .text, rejects relocations/data
 
 # 2. injector
 llvm-dlltool -m i386:x86-64 -d tools/kernel32.def -l build/kernel32.lib

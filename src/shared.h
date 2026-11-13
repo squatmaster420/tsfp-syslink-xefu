@@ -16,6 +16,10 @@ typedef unsigned char u8;
 #define STAGE_BOUND       3
 #define STAGE_THREAD      4
 #define STAGE_LOOP        11
+#define STAGE_TX_SEND     12  /* calling sendto */
+#define STAGE_TX_RAISE    13  /* calling the "sent" interrupt helper */
+#define STAGE_RX_RAISE    14  /* calling the "received" interrupt helper */
+#define STAGE_IDLE        15  /* back in the loop after a raise */
 #define STAGE_ERR_WS2     90
 #define STAGE_ERR_SOCKET  91
 #define STAGE_ERR_BIND    92
