@@ -32,11 +32,12 @@ repository, and every release is built from it by GitHub Actions.
 
 1. Install and start [XLink Kai](https://www.teamxlink.co.uk/) (run it as
    administrator and allow it through the firewall).
-2. Close TimeSplitters if it is running, then run `tsfp-syslink.exe`.
+2. Extract `tsfp-syslink.exe` to `TimeSplitters Future Perfect\Content`
+3. Close TimeSplitters if it is running, then run `tsfp-syslink.exe`.
    It starts the game for you and must stay open while you play.
-3. Wait for `Bridge running` in its window.
-4. In XLink Kai, go to the **TimeSplitters: Future Perfect** arena.
-5. In the game: **Multiplayer -> System Link**, then host or search.
+4. Wait for `Bridge running` in its window.
+5. In XLink Kai, go to the **TimeSplitters: Future Perfect** arena.
+6. In the game: **Multiplayer -> System Link**, then host or search.
 
 The window shows how many frames have been sent and received. Kai's
 **Metrics** tab should show traffic as soon as the game is on the System Link
