@@ -1,8 +1,10 @@
 # CLAUDE.md — index
 
 TimeSplitters: Future Perfect, **Xbox-app (PC) release** — the original Xbox game
-running inside Microsoft's Xbox-360 back-compat emulator (`Emu.exe`). This repo
-holds a working System Link tool plus research/mods for the emulated title.
+running inside Microsoft's Xbox-360 back-compat emulator (`Emu.exe`). This repo is
+the **networking product**: System Link and Xbox Live revival. Quality-of-life
+mods (resolution, FOV, ultrawide, bots, KB/M) live in the separate
+[TSFP-Xefu-QOL](https://github.com/squatmaster420/TSFP-Xefu-QOL) repo.
 
 This file is an **index**, not a dumping ground. Keep it lean. Put the real
 detail in the per-area memory files under `memory/` and link them here.
@@ -24,7 +26,9 @@ On **every topic change**, before starting work:
 | How the emulator works, how we patch it, Cheat Engine MCP tips | `memory/emulator-internals.md` | Shared context for ALL the game/emulator work. Read first. |
 | System Link / LAN multiplayer (the shipped tool) | `memory/system-link.md` | `src/` injector + bridge, `cheat-engine/`, build, how it works |
 | Xbox Live revival (Insignia / xb.live) | `memory/xbox-live-revival.md` | Live client intact, one-byte re-enable, the identity wall. Full write-up: `insignia/FEASIBILITY.md` |
-| Quality-of-life mods (resolution, FOV, ultrawide, bots, KB/M) | `memory/qol-mods.md` | Per-feature feasibility, findings so far, exact next steps |
+
+Quality-of-life mods were moved to the separate `TSFP-Xefu-QOL` repo; this repo
+stays networking-only.
 
 ## Build
 
