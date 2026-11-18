@@ -25,6 +25,7 @@ On **every topic change**, before starting work:
 |---|---|---|
 | How the emulator works, how we patch it, Cheat Engine MCP tips | `memory/emulator-internals.md` | Shared context for ALL the game/emulator work. Read first. |
 | System Link / LAN multiplayer (the shipped tool) | `memory/system-link.md` | `src/` injector + bridge, `cheat-engine/`, build, how it works |
+| Network timing: send rate, full state, resend, receive latency | `memory/net-timing.md` | Findings and Test values from the PC crossplay port; the event-driven receive; next step for the recompiled code |
 | Xbox Live revival (Insignia / xb.live) | `memory/xbox-live-revival.md` | Live client intact, one-byte re-enable, the identity wall. Full write-up: `insignia/FEASIBILITY.md` |
 
 Quality-of-life mods were moved to the separate `TSFP-Xefu-QOL` repo; this repo

@@ -73,6 +73,7 @@ typedef struct BridgeCtx {
     u64 sock;
     u64 pSendto;
     u64 pRecvfrom;
+    void *rxSocketEvent;  /* signalled when a datagram arrives; 0: poll every 2 ms */
     u8  saRemote[16];
 
     /* strings (kept here so the payload has no data section) */
@@ -84,6 +85,7 @@ typedef struct BridgeCtx {
     char sRecvfrom[16];
     char sIoctlsocket[16];
     char sWSAGetLastError[24];
+    char sWSAEventSelect[16];
 } BridgeCtx;
 
 #endif

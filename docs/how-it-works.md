@@ -65,7 +65,10 @@ arrives in a `BridgeCtx` structure written next to it.
 
 Its thread:
 
-- waits on the two events it installed in the NIC object (2 ms timeout);
+- waits on the two events it installed in the NIC object and on a socket event that
+  Winsock signals when a datagram arrives (`WSAEventSelect`), so a received frame is
+  passed to the game at once (50 ms safety timeout; 2 ms polling if the socket event
+  cannot be set up);
 - sends every newly queued frame as one UDP datagram, marks it sent, and raises
   the "sent" interrupt;
 - when the receive buffer is free, takes one datagram, copies it into the

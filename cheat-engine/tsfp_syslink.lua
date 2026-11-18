@@ -49,6 +49,7 @@ typedef int (*t_sendto)(u64, const void *, int, int, const void *, int);
 typedef int (*t_recvfrom)(u64, void *, int, int, void *, int *);
 typedef int (*t_ioctlsocket)(u64, long, u32 *);
 typedef int (*t_WSAGetLastError)(void);
+typedef int (*t_WSAEventSelect)(u64, void *, long);
 
 /* configuration, written by the Lua loader before init */
 u64 cfg_base;            /* Emu.exe base */
@@ -64,6 +65,7 @@ volatile u32 st_init_once;
 static t_sendto p_sendto;
 static t_recvfrom p_recvfrom;
 static u64 sock;
+static void *rx_event;            /* signalled when a datagram arrives */
 static u8 sa_remote[16];
 
 typedef void (*t_irqhelper)(u64 thisptr);
@@ -84,7 +86,7 @@ static u32 bridge_loop(void *unused)
     u64 obj2 = cfg_base + 0x12C2B0;
     t_irqhelper raise_rx = (t_irqhelper)(cfg_base + 0x8D640);
     t_irqhelper raise_tx = (t_irqhelper)(cfg_base + 0x8D670);
-    void *ev[2];
+    void *ev[3];
     u32 cons = 0;
     u8 frame[2048];
     u8 from[16];
@@ -95,11 +97,12 @@ static u32 bridge_loop(void *unused)
     ev[1] = CreateEventA(0, 0, 0, 0);    /* rx consumed */
     *(void **)(obj + 0xAC8) = ev[0];
     *(void **)(obj + 0x18)  = ev[1];
+    ev[2] = rx_event;                    /* wake at once when a frame arrives */
     st_stage = 11;
     st_running = 1;
 
     for (;;) {
-        u32 w = WaitForMultipleObjects(2, ev, 0, 2);
+        u32 w = WaitForMultipleObjects(ev[2] ? 3 : 2, ev, 0, ev[2] ? 50 : 2);
         u32 prod, sent = 0;
 
         if (w == 1) {                    /* guest copied the rx frame out */
@@ -173,6 +176,11 @@ void bridge_init(void)
     fill_sockaddr(sa_remote, cfg_remote_ip, cfg_remote_port);
     if (p_bind(sock, sa_local, 16) != 0) { st_stage = 92; st_wsaerr = p_err(); return; }
     p_ioctl(sock, 0x8004667E, &nb);      /* FIONBIO: non-blocking */
+    {
+        t_WSAEventSelect p_select = (t_WSAEventSelect)GetProcAddress(ws, "WSAEventSelect");
+        void *rx = CreateEventA(0, 0, 0, 0);
+        if (p_select && rx && p_select(sock, rx, 1) == 0) rx_event = rx;   /* FD_READ */
+    }
     st_stage = 3;
     CreateThread(0, 0, (void *)bridge_loop, 0, 0, 0);
     st_stage = 4;

@@ -438,6 +438,7 @@ static void fill_ctx(BridgeCtx *c, const Targets *t, const Config *cfg, u64 code
     scopy(c->sRecvfrom, "recvfrom", 16);
     scopy(c->sIoctlsocket, "ioctlsocket", 16);
     scopy(c->sWSAGetLastError, "WSAGetLastError", 24);
+    scopy(c->sWSAEventSelect, "WSAEventSelect", 16);
 }
 
 /* ------------------------------------------------------------------- main */

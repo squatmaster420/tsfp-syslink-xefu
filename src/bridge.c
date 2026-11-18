@@ -19,11 +19,13 @@ typedef int (*t_sendto)(u64, const void *, int, int, const void *, int);
 typedef int (*t_recvfrom)(u64, void *, int, int, void *, int *);
 typedef int (*t_ioctlsocket)(u64, long, u32 *);
 typedef int (*t_WSAGetLastError)(void);
+typedef int (*t_WSAEventSelect)(u64, void *, long);
 
 typedef void (*t_raise)(u64 thisptr);
 
 #define MAX_FRAME 1600
 #define FIONBIO_  0x8004667E
+#define FD_READ_  0x01
 
 static void sockaddr_in4(u8 *sa, u32 ip, u32 port)
 {
@@ -51,7 +53,7 @@ u32 bridge_loop(BridgeCtx *c)
     volatile u16 *rxLen = (volatile u16 *)(nic + c->offRxLen);
     volatile u8 *rxBuf = nic + c->offRxBuf;
     volatile u32 *txProd = (volatile u32 *)(nic + c->offTxProd);
-    void *ev[2];
+    void *ev[3];
     u32 cons = 0;         /* also sends what the guest queued before we started */
     u8 frame[2048];
     u8 from[16];
@@ -60,12 +62,15 @@ u32 bridge_loop(BridgeCtx *c)
     ev[1] = CreateEventA(0, 0, 0, 0);   /* guest copied the rx frame */
     *(void *volatile *)(nic + c->offTxEvent) = ev[0];
     *(void *volatile *)(nic + c->offRxEvent) = ev[1];
+    /* A frame arriving from the network wakes the thread at once, instead of on
+     * its next polling timeout. The timeout stays only as a safety net. */
+    ev[2] = c->rxSocketEvent;
 
     c->stage = STAGE_LOOP;
     c->running = 1;
 
     for (;;) {
-        u32 w = Wait(2, ev, 0, 2);
+        u32 w = Wait(ev[2] ? 3 : 2, ev, 0, ev[2] ? 50 : 2);
         u32 prod, sent = 0;
 
         if (w == 1) *rxLen = 0;          /* rx buffer free again */
@@ -146,6 +151,14 @@ void bridge_init(BridgeCtx *c)
     sockaddr_in4(c->saRemote, c->remoteIp, c->remotePort);
     if (p_bind(c->sock, local, 16) != 0) { c->wsaError = (u32)p_err(); c->stage = STAGE_ERR_BIND; return; }
     p_ioctl(c->sock, FIONBIO_, &nb);
+    {
+        /* Signal an event when a datagram arrives (the socket stays non-blocking). */
+        t_WSAEventSelect p_select = (t_WSAEventSelect)GetProcAddress(ws, c->sWSAEventSelect);
+        t_CreateEventA CreateEventA = (t_CreateEventA)c->fnCreateEventA;
+        void *rx = CreateEventA(0, 0, 0, 0);
+        c->rxSocketEvent = 0;
+        if (p_select && rx && p_select(c->sock, rx, FD_READ_) == 0) c->rxSocketEvent = rx;
+    }
 
     c->stage = STAGE_THREAD;   /* set first: the new thread updates it from here on */
     if (!CreateThread(0, 0, (void *)c->bridgeLoop, c, 0, 0)) { c->stage = STAGE_ERR_THREAD; return; }

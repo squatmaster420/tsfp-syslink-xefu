@@ -37,6 +37,11 @@ All memory-only and reversible.
 `sh build.sh` → `dist/tsfp-syslink.exe` (v0.1.2). Needs LLVM clang / lld-link /
 llvm-dlltool. GitHub Actions `.github/workflows/build.yml` builds on release.
 
+## Receive latency
+
+The bridge wakes on a Winsock socket event (`WSAEventSelect(FD_READ)`), not a 2 ms poll;
+see `memory/net-timing.md`.
+
 ## Key facts
 
 - `VirtualNicDevice` is a static global at `Emu.exe + 0x12C2B8`.
