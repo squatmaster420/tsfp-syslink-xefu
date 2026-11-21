@@ -20,12 +20,22 @@ typedef int (*t_recvfrom)(u64, void *, int, int, void *, int *);
 typedef int (*t_ioctlsocket)(u64, long, u32 *);
 typedef int (*t_WSAGetLastError)(void);
 typedef int (*t_WSAEventSelect)(u64, void *, long);
+typedef int (*t_setsockopt)(u64, int, int, const void *, int);
+typedef int (*t_getsockopt)(u64, int, int, void *, int *);
 
 typedef void (*t_raise)(u64 thisptr);
 
 #define MAX_FRAME 1600
 #define FIONBIO_  0x8004667E
 #define FD_READ_  0x01
+#define FIONREAD_ 0x4004667F
+#define SOL_SOCKET_ 0xFFFF
+#define SO_RCVBUF_  0x1002
+/* The emulated card holds one received frame at a time; datagrams that arrive while
+ * the game copies it wait in the socket. Windows' default buffer is small and drops
+ * the overflow silently, so a burst (respawns, a bag event and its resends) could
+ * lose a message for good. 1 MB holds several seconds of a full 16-player match. */
+#define RCVBUF_BYTES (1u << 20)
 
 static void sockaddr_in4(u8 *sa, u32 ip, u32 port)
 {
@@ -47,6 +57,7 @@ u32 bridge_loop(BridgeCtx *c)
     t_WaitForMultipleObjects Wait = (t_WaitForMultipleObjects)c->fnWaitForMultipleObjects;
     t_sendto p_sendto = (t_sendto)c->pSendto;
     t_recvfrom p_recvfrom = (t_recvfrom)c->pRecvfrom;
+    t_ioctlsocket p_ioctl = (t_ioctlsocket)c->pIoctlsocket;
     t_raise raiseRx = (t_raise)c->raiseRx;
     t_raise raiseTx = (t_raise)c->raiseTx;
     u8 *nic = (u8 *)c->nic;
@@ -101,6 +112,11 @@ u32 bridge_loop(BridgeCtx *c)
                     for (i = 0; i < n; i++) rxBuf[i] = frame[i];
                     *rxLen = (u16)n;
                     c->rxFrames++;
+                    {   /* how much is still waiting behind it: shows whether bursts pile up */
+                        u32 waiting = 0;
+                        if (p_ioctl && p_ioctl(c->sock, FIONREAD_, &waiting) == 0 && waiting > c->rxBacklogMax)
+                            c->rxBacklogMax = waiting;
+                    }
                     c->stage = STAGE_RX_RAISE;
                     raiseRx(c->nic2);
                     c->stage = STAGE_IDLE;
@@ -151,6 +167,16 @@ void bridge_init(BridgeCtx *c)
     sockaddr_in4(c->saRemote, c->remoteIp, c->remotePort);
     if (p_bind(c->sock, local, 16) != 0) { c->wsaError = (u32)p_err(); c->stage = STAGE_ERR_BIND; return; }
     p_ioctl(c->sock, FIONBIO_, &nb);
+    c->pIoctlsocket = (u64)p_ioctl;
+    {
+        t_setsockopt p_set = (t_setsockopt)GetProcAddress(ws, c->sSetsockopt);
+        t_getsockopt p_get = (t_getsockopt)GetProcAddress(ws, c->sGetsockopt);
+        u32 size = RCVBUF_BYTES;
+        int len = 4;
+        if (p_set) p_set(c->sock, SOL_SOCKET_, SO_RCVBUF_, &size, 4);
+        size = 0;
+        if (p_get && p_get(c->sock, SOL_SOCKET_, SO_RCVBUF_, &size, &len) == 0) c->rcvBuf = size;
+    }
     {
         /* Signal an event when a datagram arrives (the socket stays non-blocking). */
         t_WSAEventSelect p_select = (t_WSAEventSelect)GetProcAddress(ws, c->sWSAEventSelect);

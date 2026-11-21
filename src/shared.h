@@ -68,12 +68,15 @@ typedef struct BridgeCtx {
     volatile u32 rxDropped;
     volatile u32 sendErrors;
     volatile u32 started;     /* set by the hook stub */
+    volatile u32 rcvBuf;      /* socket receive buffer in bytes, as Windows reports it */
+    volatile u32 rxBacklogMax;/* most bytes ever waiting in it after handing a frame over */
 
     /* private to the bridge */
     u64 sock;
     u64 pSendto;
     u64 pRecvfrom;
     void *rxSocketEvent;  /* signalled when a datagram arrives; 0: poll every 2 ms */
+    u64 pIoctlsocket;
     u8  saRemote[16];
 
     /* strings (kept here so the payload has no data section) */
@@ -86,6 +89,8 @@ typedef struct BridgeCtx {
     char sIoctlsocket[16];
     char sWSAGetLastError[24];
     char sWSAEventSelect[16];
+    char sSetsockopt[16];
+    char sGetsockopt[16];
 } BridgeCtx;
 
 #endif

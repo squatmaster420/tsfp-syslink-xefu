@@ -439,6 +439,8 @@ static void fill_ctx(BridgeCtx *c, const Targets *t, const Config *cfg, u64 code
     scopy(c->sIoctlsocket, "ioctlsocket", 16);
     scopy(c->sWSAGetLastError, "WSAGetLastError", 24);
     scopy(c->sWSAEventSelect, "WSAEventSelect", 16);
+    scopy(c->sSetsockopt, "setsockopt", 16);
+    scopy(c->sGetsockopt, "getsockopt", 16);
 }
 
 /* ------------------------------------------------------------------- main */
@@ -608,9 +610,13 @@ void mainCRTStartup(void)
                 u32 f[2] = {0, 0}, one[2] = {1, 1};
                 if (rd(proc, ctxAddr, &live, sizeof(live))) lastStage = live.stage;
                 if (rd(proc, ctxAddr, &live, sizeof(live)) && (live.txFrames != lastTx || live.rxFrames != lastRx)) {
-                    char line[160];
+                    char line[200];
                     lastTx = live.txFrames; lastRx = live.rxFrames;
-                    wsprintfA(line, "\rsent %u  received %u  send errors %u      ", live.txFrames, live.rxFrames, live.sendErrors);
+                    /* "waiting" is the most data ever queued behind the frame the game was
+                     * copying; near the buffer size means bursts are being dropped. */
+                    wsprintfA(line, "\rsent %u  received %u  send errors %u  waiting at most %u of %u KB      ",
+                              live.txFrames, live.rxFrames, live.sendErrors,
+                              (live.rxBacklogMax + 1023) / 1024, live.rcvBuf / 1024);
                     out(line);
                 }
                 rd(proc, t.nicFlags, f, 8);
