@@ -10,7 +10,7 @@
 #include "win.h"
 #include "payload.h"   /* generated: g_payload[], PAYLOAD_INIT_OFFSET, PAYLOAD_LOOP_OFFSET */
 
-#define VERSION "0.1.2"
+#define VERSION "1.1.0"
 
 /* compilers may emit calls to these even with -fno-builtin */
 void *memset(void *d, int c, u64 n) { volatile u8 *p = d; while (n--) *p++ = (u8)c; return d; }

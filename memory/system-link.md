@@ -34,7 +34,7 @@ All memory-only and reversible.
 
 ## Build
 
-`sh build.sh` → `dist/tsfp-syslink.exe` (v0.1.2). Needs LLVM clang / lld-link /
+`sh build.sh` → `dist/tsfp-syslink.exe` (v1.1.0). Needs LLVM clang / lld-link /
 llvm-dlltool. GitHub Actions `.github/workflows/build.yml` builds on release.
 
 ## Receive latency
