@@ -42,6 +42,18 @@ llvm-dlltool. GitHub Actions `.github/workflows/build.yml` builds on release.
 The bridge wakes on a Winsock socket event (`WSAEventSelect(FD_READ)`), not a 2 ms poll;
 see `memory/net-timing.md`.
 
+## Receive buffer and lost frames (2026-11-21)
+
+Owner, Xbox app with a real Xbox, Capture the Bag: on his screen a bag carrier died and
+the bag reset, but the carrier went on holding it (the machines disagreed). Not the PC
+port's cause (upstream's payload guard; that repo only). Not identified here. Weak point
+found: the card takes one received frame at a time and the socket had Windows' default
+receive buffer, which drops a burst silently. Now 1 MB (`SO_RCVBUF`), and the status line
+shows the most bytes ever waiting (`FIONREAD` after each hand-over). Next: play a Capture
+the Bag match and read `waiting at most N of 1024 KB`; if N stays small, frames are not
+lost here and the cause is elsewhere (loss on the internet path through XLink Kai, or the
+game itself). The Cheat Engine script does not have this yet.
+
 ## Key facts
 
 - `VirtualNicDevice` is a static global at `Emu.exe + 0x12C2B8`.

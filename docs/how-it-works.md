@@ -72,7 +72,10 @@ Its thread:
 - sends every newly queued frame as one UDP datagram, marks it sent, and raises
   the "sent" interrupt;
 - when the receive buffer is free, takes one datagram, copies it into the
-  buffer and raises the "received" interrupt.
+  buffer and raises the "received" interrupt. Datagrams that arrive meanwhile wait in
+  the socket: the bridge asks Windows for a 1 MB receive buffer (the default is small
+  and drops a burst silently), and the status line shows the most data ever waiting,
+  `waiting at most N of 1024 KB`. N near the buffer size means bursts are lost.
 
 One Ethernet frame per UDP datagram is the format of xemu's *UDP Tunnel* and
 what XLink Kai accepts on port 34523.
